@@ -2,5 +2,5 @@
 - hosts: pluto
   become: yes
   roles:
-    - instalacja
+    - wildfly_deployment
 

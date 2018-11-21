@@ -1,0 +1,129 @@
+---
+# tasks file for instalacja
+- name: check VTMS version
+  get_url:
+    url: '{{ repo_location }}/{{ descriptor_filename }}'
+    validate_certs: false
+    dest: /tmp/vtms.xml
+
+- name: get VTMS version
+  uri:
+    url: '{{ repo_location }}/{{ descriptor_filename }}'
+    method: GET
+    content_as_json: true
+    validate_certs: no
+    return_content: yes
+    register: vtms_version
+
+- name: get URL from XML
+  shell: sed -n 's:.*<url>\(.*\)</url>.*:\1:p' < /tmp/vtms.xml
+  register: vtms_url
+
+- name: create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0775
+  with_items:
+    - /tmp/tms
+    - /tmp/prev
+    - /tmp/prev/www
+
+- name: unarchive deployment file
+  unarchive:
+    src: '{{ vtms_url.stdout }}'
+    dest: /tmp/tms
+    validate_certs: false
+    remote_src: yes
+    creates: /tmp/tms/VTMS
+
+- name: backup current version
+  shell: /bin/cp '{{ jboss_home }}'/standalone/deployments/vtms-*.war /tmp/prev
+  ignore_errors: true
+
+- name: backup www directory
+  shell: /bin/cp -r '{{ www_root }}' /tmp/prev/www
+  ignore_errors: true
+  
+- name: stop wildfly service 
+  service: 
+    name: wildfly
+    state: stopped
+
+- name: check if pattern.scss exists
+  stat:
+    path: /tmp/tms/VTMS/pattern.scss
+  register: file
+
+- name: copy pattern.scss
+  command: /bin/cp /tmp/tms/VTMS/pattern.scss '{{ jboss_home }}'/standalone/data/TMS/tenant/
+  ignore_errors: true
+  #when: file.stat.exists == True
+
+- name: remove old deployment
+  shell: /bin/rm -f '{{ jboss_home }}'/standalone/deployments/vtms-*
+
+- name: Deploy to widlfly1
+  command: /bin/cp /tmp/tms/VTMS/vtms-application-2.1.0-20181121.105638-12.war "{{ jboss_home }}/standalone/deployments/"
+
+- name: Deploy to widlfly2
+  command: /bin/cp /tmp/tms/VTMS/vtms-pmsclient-proxy-2.1.0-20181121.105520-12.war "{{ jboss_home }}/standalone/deployments/"
+
+- name: Change ownership of JBoss installation
+  file:
+    path: "'{{ jboss_home }}'/standalone/"
+    owner: jboss
+    group: jboss
+    state: directory
+    recurse: yes
+
+- name: remove settings.js
+  command: /bin/rm -f  /tmp/tms/VTMS/web/app/utils/settings.js
+
+- name: remove www_root
+  file:
+    state: absent
+    path: '{{ www_root }}/'
+
+- name: create directories
+  file:
+    state: directory
+    path: "{{ item }}/"
+  with_items: 
+    - '{{ www_root }}/'
+    - '{{ www_root }}/app/utils'
+    - '{{ www_root }}/dist/app/utils'
+    - /opt/CommunicationModule/lib/
+
+- name: populate www_root
+  shell: /bin/cp -r /tmp/tms/VTMS/web/* '{{ www_root }}'/
+
+- name: copy .htaccess
+  command: /bin/cp /tmp/prev/www/html/.htaccess '{{ www_root }}'/ 
+
+- name: copy settings.js
+  command: /bin/cp /tmp/prev/www/html/app/utils/settings.js '{{ www_root }}'/app/utils/
+
+- name: copy settings.js
+  command: /bin/cp /tmp/prev/www/html/app/utils/settings.js '{{ www_root }}'/dist/app/utils/
+
+- name: start wildfly service 
+  service: 
+    name: wildfly
+    enabled: yes
+    state: started
+
+- name: copy ep2-server.jar
+  shell: /bin/cp /tmp/tms/VTMS/CommunicationModule/lib/ep2-server-*.jar /opt/CommunicationModule/lib/ep2-server.jar
+
+- name: restart ep2-server
+  command: /opt/CommunicationModule/bin/ep2_server restart
+
+- name: save new version to file
+  shell: sed -n 's:.*<version>\(.*\)</version>.*:\1:p' < /tmp/vtms.xml > /etc/vtms/vtms.version
+  register: vtms_version
+
+
+
