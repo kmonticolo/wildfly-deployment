@@ -24,7 +24,7 @@
 
 - name: get deployment file
   get_url:
-    url: '{{ vtms_url }}'
+    url: '{{ vtms_url.stdout }}'
     #url: https://alpha.novelpay.pl/tmsc\CS_TEST.xml
     #status_code: 200
     validate_certs: false
