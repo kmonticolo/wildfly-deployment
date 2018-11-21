@@ -1,0 +1,5 @@
+---
+# vars file for instalacja
+repo_location: https://alpha.novelpay.pl/tmsc
+descriptor_filename: CS_TEST.xml
+

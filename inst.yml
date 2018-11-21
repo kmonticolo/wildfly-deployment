@@ -1,0 +1,6 @@
+---
+- hosts: pluto
+  become: yes
+  roles:
+    - instalacja
+
