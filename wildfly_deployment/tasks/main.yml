@@ -5,6 +5,7 @@
     url: '{{ repo_location }}/{{ descriptor_filename }}'
     validate_certs: false
     dest: /tmp/vtms.xml
+  changed_when: False
 
 - name: get VTMS version
   uri:
@@ -18,6 +19,7 @@
 - name: get URL from XML
   shell: sed -n 's:.*<url>\(.*\)</url>.*:\1:p' < /tmp/vtms.xml
   register: vtms_url
+  changed_when: False
 
 - name: create directories
   file:
@@ -33,7 +35,7 @@
 
 - name: unarchive deployment file
   unarchive:
-    src: '{{ vtms_url.stdout }}'
+    src: "{{ vtms_url.stdout }}"
     dest: /tmp/tms
     validate_certs: false
     remote_src: yes
@@ -52,10 +54,18 @@
     name: wildfly
     state: stopped
 
-- name: check if pattern.scss exists
+- name: ensure file pattern.scss exists
   stat:
     path: /tmp/tms/VTMS/pattern.scss
   register: file
+
+- name: ensure directory standalone/data/TMS/tenant exists
+  file:
+    path: '{{ jboss_home }}/standalone/data/TMS/tenant/'
+    state: directory
+    owner: jboss
+    group: jboss
+    mode: 0775
 
 - name: copy pattern.scss
   command: /bin/cp /tmp/tms/VTMS/pattern.scss '{{ jboss_home }}'/standalone/data/TMS/tenant/
@@ -65,11 +75,11 @@
 - name: remove old deployment
   shell: /bin/rm -f '{{ jboss_home }}'/standalone/deployments/vtms-*
 
-- name: Deploy to widlfly1
-  command: /bin/cp /tmp/tms/VTMS/vtms-application-2.1.0-20181121.105638-12.war "{{ jboss_home }}/standalone/deployments/"
+- name: Deploy vtms-application
+  shell: /bin/cp /tmp/tms/VTMS/vtms-application-*.war "{{ jboss_home }}/standalone/deployments/"
 
-- name: Deploy to widlfly2
-  command: /bin/cp /tmp/tms/VTMS/vtms-pmsclient-proxy-2.1.0-20181121.105520-12.war "{{ jboss_home }}/standalone/deployments/"
+- name: Deploy vtms-pmsclient
+  shell: /bin/cp /tmp/tms/VTMS/vtms-pmsclient*.war "{{ jboss_home }}/standalone/deployments/"
 
 - name: Change ownership of JBoss installation
   file:
@@ -115,11 +125,17 @@
     enabled: yes
     state: started
 
+- name: ensure ep2_server exists
+  stat:
+    path: /opt/CommunicationModule/bin/ep2_server
+  register: ep2server
+
 - name: copy ep2-server.jar
   shell: /bin/cp /tmp/tms/VTMS/CommunicationModule/lib/ep2-server-*.jar /opt/CommunicationModule/lib/ep2-server.jar
 
 - name: restart ep2-server
   command: /opt/CommunicationModule/bin/ep2_server restart
+  when: ep2server.stat.exists == True
 
 - name: save new version to file
   shell: sed -n 's:.*<version>\(.*\)</version>.*:\1:p' < /tmp/vtms.xml > /etc/vtms/vtms.version
