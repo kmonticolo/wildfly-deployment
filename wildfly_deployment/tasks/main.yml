@@ -108,7 +108,9 @@
     recurse: yes
 
 - name: remove settings.js
-  command: /bin/rm -f  /tmp/tms/VTMS/web/app/utils/settings.js
+  file:
+    path: /tmp/tms/VTMS/web/app/utils/settings.js
+    state: absent
 
 - name: remove www_root
   file:
@@ -129,13 +131,22 @@
   shell: /bin/cp -r /tmp/tms/VTMS/web/* '{{ www_root }}'/
 
 - name: copy .htaccess
-  command: /bin/cp /tmp/prev/www/html/.htaccess '{{ www_root }}'/ 
+  copy: 
+    remote_src: True
+    src: /tmp/prev/www/html/.htaccess
+    dest: '{{ www_root }}'
 
 - name: copy settings.js
-  command: /bin/cp /tmp/prev/www/html/app/utils/settings.js '{{ www_root }}'/app/utils/
+  copy: 
+    remote_src: True
+    src: /tmp/prev/www/html/app/utils/settings.js
+    dest: '{{ www_root }}/app/utils/'
 
 - name: copy settings.js
-  command: /bin/cp /tmp/prev/www/html/app/utils/settings.js '{{ www_root }}'/dist/app/utils/
+  copy: 
+    remote_src: True
+    src: /tmp/prev/www/html/app/utils/settings.js
+    dest: '{{ www_root }}/dist/app/utils/'
 
 - name: start wildfly service 
   service: 
@@ -148,8 +159,19 @@
     path: /opt/CommunicationModule/bin/ep2_server
   register: ep2server
 
+- name: find ep2-server.jar 
+  find:
+    paths: /tmp/tms/VTMS/CommunicationModule/lib/
+    patterns: 'ep2-server-*.jar'
+  register: ep2_server
+
 - name: copy ep2-server.jar
-  shell: /bin/cp /tmp/tms/VTMS/CommunicationModule/lib/ep2-server-*.jar /opt/CommunicationModule/lib/ep2-server.jar
+  copy:
+    remote_src: True
+    src: "{{ item }}"
+    dest: /opt/CommunicationModule/lib/
+  with_items:
+    - "{{ ep2_server.files |  map(attribute='path') | list }}"
 
 - name: restart ep2-server
   command: /opt/CommunicationModule/bin/ep2_server restart
@@ -158,6 +180,3 @@
 - name: save new version to file
   shell: sed -n 's:.*<version>\(.*\)</version>.*:\1:p' < /tmp/vtms.xml > /etc/vtms/vtms.version
   register: vtms_version
-
-
-
