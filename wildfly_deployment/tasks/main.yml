@@ -75,11 +75,19 @@
 - name: remove old deployment
   shell: /bin/rm -f '{{ jboss_home }}'/standalone/deployments/vtms-*
 
-- name: Deploy vtms-application
-  shell: /bin/cp /tmp/tms/VTMS/vtms-application-*.war "{{ jboss_home }}/standalone/deployments/"
+- name: find war files
+  find:
+    paths: /tmp/tms/VTMS
+    patterns: 'vtms-*.war'
+  register: vtms_application
 
-- name: Deploy vtms-pmsclient
-  shell: /bin/cp /tmp/tms/VTMS/vtms-pmsclient*.war "{{ jboss_home }}/standalone/deployments/"
+- name: Deploy war files
+  copy: 
+    remote_src: True
+    src: "{{ item }}" 
+    dest: "{{ jboss_home }}/standalone/deployments/"
+  with_items:
+    - "{{ vtms_application.files |  map(attribute='path') | list }}"
 
 - name: Change ownership of JBoss installation
   file:
