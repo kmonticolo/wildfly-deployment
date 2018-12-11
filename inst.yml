@@ -1,6 +1,7 @@
 ---
 - hosts: pluto
   become: yes
+  gather_facts: false
   roles:
     - wildfly_deployment
 
