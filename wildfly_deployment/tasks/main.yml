@@ -41,9 +41,19 @@
     remote_src: yes
     creates: /tmp/tms/VTMS
 
+- name: find war files to backup
+  find:
+    paths: '{{ jboss_home }}/standalone/deployments' 
+    patterns: 'vtms-*.war'
+  register: vtms_to_backup
+
 - name: backup current version
-  shell: /bin/cp '{{ jboss_home }}'/standalone/deployments/vtms-*.war /tmp/prev
-  ignore_errors: true
+  copy: 
+    remote_src: True
+    src: "{{ item }}" 
+    dest: /tmp/prev
+  with_items:
+    - "{{ vtms_to_backup.files |  map(attribute='path') | list }}"
 
 - name: backup www directory
   shell: /bin/cp -r '{{ www_root }}' /tmp/prev/www
