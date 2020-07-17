@@ -82,18 +82,12 @@
   ignore_errors: true
   #when: file.stat.exists == True
 
-- name: find war files to delete
-  find:
-    paths: '{{ jboss_home }}/standalone/deployments' 
-    patterns: 'vtms-*.war'
-  register: vtms_to_delete
-
 - name: remove old deployment
   file:
     path: "{{ item }}"
     state: absent
   with_items:
-    - "{{ vtms_to_delete.files |  map(attribute='path') | list }}"
+    - "{{ vtms_to_backup.files |  map(attribute='path') | list }}"
 
 - name: find war files
   find:
