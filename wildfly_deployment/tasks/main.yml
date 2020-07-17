@@ -11,10 +11,10 @@
   uri:
     url: '{{ repo_location }}/{{ descriptor_filename }}'
     method: GET
-    content_as_json: true
+    body_format: json
     validate_certs: no
     return_content: yes
-    register: vtms_version
+  register: vtms_version
 
 - name: get URL from XML
   shell: sed -n 's:.*<url>\(.*\)</url>.*:\1:p' < /tmp/vtms.xml
